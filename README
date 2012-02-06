@@ -1,20 +1,5 @@
-一个简易而具有扩展性的基于PHP和cron的挂论坛在线时间的工具
-
 FOTC is a php-based simple and extensible forum online time cheater. Unlike those auto-refresh plugins, FOTC works on your server.
 
-简易安装方法:
-
-把trunk里面的东西全拖回家（推荐SVN）
-把后缀名为.sample.php的文件打开，按照里面的说明修改，最后把后缀名改成.php
-上传到(能连接到对应论坛)&&(支持cron)&&(支持curl)的服务器
-在服务器端设置cron.php每多少分钟执行一次
-该干啥干啥去。
-如果哪天程序更新了，请从1开始重新来一遍。
-
-由于cron本身的限制，最小刷新时间为1分钟。
-
-建议设置10分钟以上的刷新时间
-
-WTFPL
+Need cron and cURL supported on server
 
 May Madoka be with you.
