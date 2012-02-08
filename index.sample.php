@@ -1,18 +1,20 @@
 <?php
 define('LOGINHASH',TRUE);
-//设置登录HASH防止盗号，请将LOGINHASH修改成任意长字符串并将config.php中的相应部分修改成相同内容
+//设置登录HASH防止盗号，请将LOGINHASHHERE修改成任意长字符串并将config.php中的相应部分修改成相同内容
 require("config.php");
 require('HttpClient.php');
 require('simple_html_dom.php');
 require('log.php');
 require('func/func_include.php');
-log_runtime_overall(0,LOG_MICROTIME_ENABLE);    //计时开始
 if(!$_REQUEST["work"])
 {
+    if($_REQUEST['aboutpass'])
+        $aboutpass=$_REQUEST['aboutpass'];
 	require_once("about.php");
-	FOTC_about();  //关于信息
+	FOTC_about($aboutpass);  //关于信息
 	exit();
 }
+log_runtime_overall(0,LOG_MICROTIME_ENABLE);    //计时开始
 if (!is_dir("cookie"))
 mkdir("cookie");
 $log_runtime_overall_mode=1;

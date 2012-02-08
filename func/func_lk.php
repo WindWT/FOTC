@@ -6,7 +6,11 @@ class lk_func{
     private $pageContents;
     private $errCode;
     private $client;
+    private $retry=0;
+    //以下两个是参数
     private $HTTPdebug=false;
+    private $maxretry=3;
+    
     public function lk_func($logininfo)
     {
         $this->loginCredential=$logininfo;
@@ -77,20 +81,8 @@ class lk_func{
     {
         log_runtime(0,LOG_MICROTIME_ENABLE);
     	$pageContents = HttpClient::quickGet('http://www.lightnovel.cn/member.php?mod=logging&action=login');
-    	$html=str_get_html($pageContents);
-    	/*$errorPass=$html->find("div.postbox",0)->find('div.alert_info',0)->plaintext;
-    	if ($errorPass)
-    	{
-    		log_make($logininfo,"Error",'TooManyTryPass',LOG_ENABLE,LOG_MICROTIME_ENABLE);
-    		exit(-1);
-    	}*/
-    	$formhashPos=stripos($pageContents,'<input type="hidden" name="formhash" value=');
-    	$formhash=NULL;
-    	for ($i=0;$i<8;$i++)	//得到formhash
-    	{
-    		$formhash=$formhash.$pageContents[$formhashPos+44];
-    		$formhashPos++;
-    	}
+    	$formhash=$this->getformhash($pageContents);
+        $html=str_get_html($pageContents);
         $postAddress=$html->find('form[name=login]',0)->action;
         $postAddress=str_replace('&amp;','&',$postAddress);
     	$this->client->post('/'.$postAddress, array(        
@@ -105,23 +97,35 @@ class lk_func{
     		'cookietime' => 2592000,
     	));
     	$cookieRaw=$this->client->headers['set-cookie'];
-    	$file=fopen($this->cookieFilename,w);
-    	foreach($cookieRaw as $temp)	//把$cookieRaw[0]变成$cookie[lkww_sid]
-    	{
-    		$cookieTemp=explode(';',$temp);
-    		$cookieTemp[1]=explode('=',$cookieTemp[0]);
-    		$this->cookie[$cookieTemp[1][0]]=$cookieTemp[1][1];
-    		$cookie4file=$cookieTemp[1][0]."=".$cookieTemp[1][1].";";
-    		fwrite($file,$cookie4file);
-    	}
-    	fclose($file);
+        $this->writecookie($cookieRaw);
+        $this->readcookie();
     	$this->errCode=$this->client->getError();
     	if($refreshcookie)
-    	$status="Refresh";
+    	{
+    	   $status="Refresh";
+           $this->retry++;
+    	}
     	else
     	$status="Init";
     	log_make($this->loginCredential,$status,$errCode,LOG_ENABLE,LOG_MICROTIME_ENABLE);
     	return(0);
+    }
+    private function getformhash($pageContents)
+    {
+    	/*$errorPass=$html->find("div.postbox",0)->find('div.alert_info',0)->plaintext;
+    	if ($errorPass)
+    	{
+    		log_make($logininfo,"Error",'TooManyTryPass',LOG_ENABLE,LOG_MICROTIME_ENABLE);
+    		exit(-1);
+    	}*/
+    	$formhashPos=stripos($pageContents,'<input type="hidden" name="formhash" value=');
+    	$formhash=NULL;
+    	for ($i=0;$i<8;$i++)	//得到formhash
+    	{
+    		$formhash=$formhash.$pageContents[$formhashPos+44];
+    		$formhashPos++;
+    	}
+        return $formhash;
     }
     private function readcookie()    //处理cookie文件
     {
@@ -132,6 +136,18 @@ class lk_func{
     	{
     		$cookieTemp=explode('=',$cookie4file_line);
     		$this->cookie[$cookieTemp[0]]=$cookieTemp[1];
+    	}
+    	fclose($file);
+    }
+    private function writecookie($cookieRaw)
+    {
+        $file=fopen($this->cookieFilename,w);
+    	foreach($cookieRaw as $temp)	//把$cookieRaw[0]变成$cookie[lkww_sid]
+    	{
+    		$cookieTemp=explode(';',$temp);
+    		$cookieTemp[1]=explode('=',$cookieTemp[0]);
+    		$cookie4file=$cookieTemp[1][0]."=".$cookieTemp[1][1].";";
+    		fwrite($file,$cookie4file);
     	}
     	fclose($file);
     }
@@ -148,30 +164,35 @@ class lk_func{
     		log_make($this->loginCredential,"Error","TimeOut",LOG_ENABLE,LOG_MICROTIME_ENABLE);
     		return(0);
     	}
-        if (substr_count($this->pageContents,iconv('UTF-8','GBK','抱歉，本期您已申请过此任务，请下期再来'))) //专用于每日任务
+        else if (substr_count($this->pageContents,iconv('UTF-8','GBK','抱歉，本期您已申请过此任务，请下期再来'))) //专用于每日任务
         {
             log_make($this->loginCredential,"View","Task_AlreadyDone",LOG_ENABLE,LOG_MICROTIME_ENABLE);
             $this->view('/home.php?mod=task&do=draw&id=98');
       		return(0);
         }
-        if (substr_count($this->pageContents,iconv('UTF-8','GBK','不是进行中的任务')))    //专用于每日任务
+        else if (substr_count($this->pageContents,iconv('UTF-8','GBK','不是进行中的任务')))    //专用于每日任务
         {
             log_make($this->loginCredential,"View","Task_AlreadyDraw",LOG_ENABLE,LOG_MICROTIME_ENABLE);
     		return(0);
         }
-        if (substr_count($this->pageContents,iconv('UTF-8','GBK','抱歉，您所在的用户组不允许申请此任务')))    //专用于每日任务
+        else if (substr_count($this->pageContents,iconv('UTF-8','GBK','抱歉，您所在的用户组不允许申请此任务')))    //专用于每日任务
         {
             log_make($this->loginCredential,"View","Task_Disallowed",LOG_ENABLE,LOG_MICROTIME_ENABLE);
     		return(0);
         }
-        if (substr_count($this->pageContents,'Service Unavailable'))
+        else if (substr_count($this->pageContents,'Service Unavailable'))
         {
             log_make($this->loginCredential,"Error","ServiceUnavailable",LOG_ENABLE,LOG_MICROTIME_ENABLE);
     		return(0);
         }
-        if (substr_count($this->pageContents,'Bad Request (Invalid Hostname)'))
+        else if (substr_count($this->pageContents,'Bad Request (Invalid Hostname)'))
         {
             log_make($this->loginCredential,"Error","BadRequest",LOG_ENABLE,LOG_MICROTIME_ENABLE);
+    		return(0);
+        }
+        else if ($this->retry>$this->maxretry)
+        {
+            log_make($this->loginCredential,"Error","TooManyRetry",LOG_ENABLE,LOG_MICROTIME_ENABLE);
     		return(0);
         }
     	$html=str_get_html($this->pageContents);

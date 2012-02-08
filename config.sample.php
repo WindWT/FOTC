@@ -3,7 +3,7 @@ define('LOG_ENABLE',0);
 //是否启用日志
 define('LOG_MICROTIME_ENABLE',0);
 //是否启用含毫秒计时的日志（要求启用日志
-define('PAUSE_PASSWORD','PASS');
+define('ABOUT_PASSWORD','PASS');
 //暂停时所需的密码，限制为4位，请修改默认密码
 if (defined('LOGINHASH'))
 //设置登录HASH防止盗号，请随机输入一串东西并修改index.php中的相应部分
