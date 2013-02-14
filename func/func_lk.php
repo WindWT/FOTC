@@ -25,6 +25,14 @@ class lk_func{
     	else
     	{
     	    $this->view();
+            /*
+             $randtuidao=rand(1,2);
+                         switch($randtuidao)
+                         {
+                             case 1:$this->tstuidao(141);break;
+                             case 2:$this->tstuidao(104);break;
+                         }
+             */
     	}
     }
     private function initurl($geturl='')
@@ -82,11 +90,13 @@ class lk_func{
         log_runtime(0,LOG_MICROTIME_ENABLE);
     	$pageContents = HttpClient::quickGet('http://www.lightnovel.cn/member.php?mod=logging&action=login');
     	$formhash=$this->getformhash($pageContents);
+        $formhash2=$this->getformhash2($pageContents);  //FORMHASH2
         $html=str_get_html($pageContents);
         $postAddress=$html->find('form[name=login]',0)->action;
         $postAddress=str_replace('&amp;','&',$postAddress);
     	$this->client->post('/'.$postAddress, array(        
-    		'formhash' => $formhash,        
+    		'formhash' => $formhash,
+            'FORMHASH2' => $formhash2,
     		'referer' => '',
     		'loginfield' => $this->loginCredential[1],
     		'username' => $this->loginCredential[2],
@@ -126,6 +136,17 @@ class lk_func{
     		$formhashPos++;
     	}
         return $formhash;
+    }
+    private function getformhash2($pageContents)
+    {
+    	$formhashPos=stripos($pageContents,'<input type="hidden" name="FORMHASH2" value=');
+    	$formhash2=NULL;
+    	for ($i=0;$i<20;$i++)	//得到formhash
+    	{
+    		$formhash2=$formhash2.$pageContents[$formhashPos+45];
+    		$formhashPos++;
+    	}
+        return $formhash2;
     }
     private function readcookie()    //处理cookie文件
     {
@@ -209,6 +230,49 @@ class lk_func{
             log_make($this->loginCredential,"View",$errCode,LOG_ENABLE,LOG_MICROTIME_ENABLE);   //计时结束，日志记录
             return(0);
         }
+    }
+    private function tstuidao($id) //推倒插件
+    {
+        $urltuidao='/tstuidao.php?_=1&action=tuidao&id='.$id;
+        $urltuidaopk='/tstuidao.php?_=1&action=tuidaopk&id='.$id;
+        $this->view($urltuidao);
+        if (substr_count($this->pageContents,iconv('UTF-8','GBK','无法进行推倒')))
+        {
+            return(0);
+        }
+        else if (substr_count($this->pageContents,iconv('UTF-8','GBK','对方五分钟内已进行过一次推倒')))
+        {
+            return(0);
+        }
+        else
+        {
+            do
+            {
+                $this->view($urltuidaopk);
+            }
+            while($this->pageContents);
+        }
+    }
+    private function tstuidaolist() //推倒插件
+    //列出所有用户对应的推倒ID
+    //穷举，很慢。
+    {
+        set_time_limit(0);
+        for($i=1;$i<900;$i++)
+        {
+            $url='/tstuidao.php?action=gettohp&id='.$i;
+            $this->view($url);
+            $user='';
+            $userposa=stripos($this->pageContents,'<font color=red><b>')+19;
+            $userposb=stripos($this->pageContents,'</b></font></td>');
+            for (;$userposa<$userposb;$userposa++)	//得到formhash
+            {
+                $user=$user.$this->pageContents[$userposa];
+            }
+            if($user)
+                echo $i." ".$user."<br />";
+        }
+        set_time_limit(60);
     }
 }
 ?>
